@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>Smart Student Dashboard | Webetu Ready</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<style>
+:root {
+  --primary: #2563eb; --bg: #f8fafc; --card: #ffffff;
+  --text-main: #0f172a; --text-muted: #64748b;
+  --border: #e2e8f0; --success: #10b981; --error: #ef4444;
+}
+[data-theme="dark"] {
+  --bg: #020617; --card: #1e293b; --text-main: #f8fafc;
+  --text-muted: #94a3b8; --border: #334155;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: 'Segoe UI', system-ui, sans-serif; }
+body { background: var(--bg); color: var(--text-main); direction: rtl; margin: 0; padding: 15px; transition: 0.3s; }
+.container { width: 100%; max-width: 480px; margin: 0 auto; padding-bottom: 40px; }
+
+/* UI Components */
+.top-nav { display: flex; justify-content: space-between; margin-bottom: 20px; }
+.btn-ui { background: var(--card); border: 1px solid var(--border); padding: 10px 15px; border-radius: 12px; cursor: pointer; color: var(--text-main); font-weight: 600; }
+
+.dept-card { background: var(--card); padding: 15px; border-radius: 20px; border: 2px solid var(--primary); margin-bottom: 20px; }
+select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg); color: var(--text-main); font-weight: bold; }
+
+.goal-card {
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: white; padding: 22px; border-radius: 24px; margin-bottom: 25px;
+  box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+}
+.goal-input-group { display: flex; align-items: center; gap: 15px; margin-top: 10px; }
+.goal-input-group input { 
+  width: 90px; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.3);
+  color: white; text-align: center; font-weight: 800; padding: 10px; border-radius: 12px; font-size: 1.2rem;
+}
+
+.module-card {
+  background: var(--card); padding: 20px; margin-bottom: 18px; border-radius: 22px;
+  border: 1px solid var(--border); box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+}
+.card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.badge { background: var(--bg); padding: 4px 12px; border-radius: 10px; font-size: 0.75rem; color: var(--primary); font-weight: 800; }
+
+.input-row { display: flex; gap: 12px; }
+.field { flex: 1; }
+label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 5px; }
+input[type="number"] {
+  width: 100%; padding: 14px; border-radius: 14px; border: 1.5px solid var(--border);
+  background: var(--card); color: var(--text-main); font-size: 1rem; outline: none;
+}
+input:focus { border-color: var(--primary); }
+
+.result-section { display: none; margin-top: 30px; }
+.result-box { 
+    background: var(--primary); color: white; padding: 35px; border-radius: 30px; text-align: center;
+    box-shadow: 0 20px 30px rgba(37, 99, 235, 0.3);
+}
+.avg-number { font-size: 4.5rem; font-weight: 900; margin: 5px 0; }
+
+.action-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+.btn-action { padding: 18px; border-radius: 18px; border: none; font-weight: 800; cursor: pointer; }
+.btn-ss { background: var(--success); color: white; }
+.btn-dl { background: #0f172a; color: white; }
+
+#toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--error); color: white; padding: 10px 20px; border-radius: 50px; display: none; z-index: 100; }
+</style>
+</head>
+
+<body>
+<div id="toast">⚠️ علامة غير منطقية (0-20)</div>
+
+<div class="container">
+  <div class="top-nav">
+    <button class="btn-ui" onclick="toggleMode()">🌓 مظهر</button>
+    <button class="btn-ui" onclick="clearAll()">🔄 تصفير</button>
+  </div>
+
+  <div class="dept-card">
+    <label>اختر التخصص الدراسي:</label>
+    <select id="deptSelect" onchange="changeDepartment()">
+        <option value="law_s1">حقوق - سداسي 1</option>
+        <option value="eco_s1">اقتصاد - سداسي 1</option>
+        <option value="it_s1">إعلام آلي - سداسي 1</option>
+        <option value="custom">-- مزامنة مع Webetu --</option>
+    </select>
+  </div>
+
+  <div class="goal-card">
+    <div style="font-weight: 700;">🎯 المعدل المستهدف</div>
+    <div class="goal-input-group">
+      <input type="number" id="targetGoal" value="10.00" step="0.1" oninput="calculate()">
+      <span>هدفك الشخصي</span>
+    </div>
+  </div>
+
+  <div id="calculator-form"></div>
+
+  <div class="result-section" id="resSection">
+    <div id="captureArea">
+      <div class="result-box">
+        <div style="font-weight: 800;">المعدل التقديري</div>
+        <div class="avg-number" id="avgOut">0.00</div>
+        <div id="targetMsg" style="background:rgba(0,0,0,0.1); padding:10px; border-radius:12px; font-size:0.85rem;"></div>
+      </div>
+    </div>
+    <div class="action-btns">
+      <button class="btn-action btn-ss" onclick="takeSS()">📸 صورة</button>
+      <button class="btn-action btn-dl" onclick="dlTxt()">📄 حفظ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const deptLibrary = {
+    law_s1: [
+        { id: "m1", name: "مدخل قانون", coef: 2, hasTD: true },
+        { id: "m2", name: "دستوري", coef: 2, hasTD: true },
+        { id: "m3", name: "تنظيم قضائي", coef: 1, hasTD: true },
+        { id: "m4", name: "منهجية", coef: 1, hasTD: false },
+        { id: "m5", name: "تاريخ نظم", coef: 1, hasTD: false },
+        { id: "m6", name: "إنجليزية", coef: 1, hasTD: false },
+        { id: "m7", name: "مجتمع دولي", coef: 1, hasTD: false }
+    ],
+    eco_s1: [
+        { id: "e1", name: "مدخل اقتصاد", coef: 3, hasTD: true },
+        { id: "e2", name: "محاسبة مالية", coef: 3, hasTD: true },
+        { id: "e3", name: "رياضيات", coef: 2, hasTD: true }
+    ],
+    it_s1: [
+        { id: "it1", name: "Algorithmique", coef: 4, hasTD: true },
+        { id: "it2", name: "Analyse", coef: 3, hasTD: true },
+        { id: "it3", name: "Structure Machine", coef: 2, hasTD: false }
+    ]
+};
+
+let activeModules = deptLibrary.law_s1;
+
+window.onload = () => {
+    const saved = localStorage.getItem('savedDept');
+    if(saved && deptLibrary[saved]) {
+        document.getElementById('deptSelect').value = saved;
+        activeModules = deptLibrary[saved];
+    }
+    renderApp();
+};
+
+function renderApp() {
+    const container = document.getElementById('calculator-form');
+    container.innerHTML = "";
+    activeModules.forEach(mod => {
+        const card = document.createElement('div');
+        card.className = 'module-card';
+        card.innerHTML = `
+            <div class="card-head"><b>${mod.name}</b> <span class="badge">معامل ${mod.coef}</span></div>
+            ${mod.hasTD ? `
+                <div class="input-row">
+                    <div class="field"><label>محاضرة</label><input type="number" id="${mod.id}c" class="grade-input" placeholder="0.0"></div>
+                    <div class="field"><label>أعمال</label><input type="number" id="${mod.id}t" class="grade-input" placeholder="0.0"></div>
+                </div>
+            ` : `<input type="number" id="${mod.id}" class="grade-input" placeholder="العلامة">`}
+        `;
+        container.appendChild(card);
+    });
+    
+    // Restore values
+    document.querySelectorAll('.grade-input').forEach(i => {
+        i.value = localStorage.getItem(i.id) || "";
+        i.oninput = () => {
+            if(i.value > 20) { document.getElementById('toast').style.display='block'; return; }
+            document.getElementById('toast').style.display='none';
+            localStorage.setItem(i.id, i.value);
+            calculate();
+        };
+    });
+    calculate();
+}
+
+function calculate() {
+    let totalPoints = 0, totalCoefs = activeModules.reduce((a,b)=>a+b.coef, 0), filledCoefs = 0;
+    activeModules.forEach(mod => {
+        let val = null;
+        if(mod.hasTD) {
+            const c = parseFloat(document.getElementById(mod.id+'c').value);
+            const t = parseFloat(document.getElementById(mod.id+'t').value);
+            if(!isNaN(c) && !isNaN(t)) val = (c*0.6) + (t*0.4);
+        } else {
+            const v = parseFloat(document.getElementById(mod.id).value);
+            if(!isNaN(v)) val = v;
+        }
+        if(val !== null) { totalPoints += (val * mod.coef); filledCoefs += mod.coef; }
+    });
+
+    if(filledCoefs === 0) { document.getElementById('resSection').style.display='none'; return; }
+    document.getElementById('resSection').style.display='block';
+    
+    const finalAvg = (totalPoints / totalCoefs).toFixed(2);
+    document.getElementById('avgOut').innerText = finalAvg;
+
+    const goal = parseFloat(document.getElementById('targetGoal').value) || 10;
+    const needed = ((goal * totalCoefs) - totalPoints) / (totalCoefs - filledCoefs);
+    document.getElementById('targetMsg').innerText = (totalCoefs > filledCoefs) ? `تحتاج لـ ${needed.toFixed(2)} في الباقي` : "تم الحساب بالكامل";
+}
+
+function changeDepartment() {
+    const val = document.getElementById('deptSelect').value;
+    if(val === 'custom') { alert('Bridge Mode: قادم قريباً'); return; }
+    activeModules = deptLibrary[val];
+    localStorage.setItem('savedDept', val);
+    renderApp();
+}
+
+function takeSS() {
+    html2canvas(document.getElementById('captureArea'), { backgroundColor: null }).then(c => {
+        const l = document.createElement('a'); l.download = 'Result.png'; l.href = c.toDataURL(); l.click();
+    });
+}
+
+function toggleMode() {
+    const d = document.documentElement;
+    d.setAttribute('data-theme', d.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+}
+
+function clearAll() { if(confirm('تصفير؟')) { localStorage.clear(); location.reload(); } }
+</script>
+</body>
+</html>
